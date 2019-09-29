@@ -212,7 +212,7 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
 
     if min_x >= 0 and min_y >= 0 and max_x <= img_w and max_y <= img_h:
         cropped = img[min_y:max_y, min_x:max_x, :]
-        print("+++++++++++111OK+++++++++++++++++++++")
+        # print("+++++++++++111OK+++++++++++++++++++++")
     else:
         min_x_val = max(0, min_x)
         min_y_val = max(0, min_y)
@@ -224,12 +224,12 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
 
             cropped[min_y_val - min_y:max_y_val - min_y, min_x_val - min_x:max_x_val - min_x, :] \
                 = img[min_y_val:max_y_val, min_x_val:max_x_val, :]
-
-            print("11111111+++++++++++++++")
+            #
+            # print("11111111+++++++++++++++")
         else:
             # pass
             out_flag = 1
-            print("22222222---------------")
+            # print("22222222---------------")
 
     scaled_l = np.array(Image.fromarray(cropped).resize((img_size, img_size)))
 
@@ -240,7 +240,7 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
 
     if min_x >= 0 and min_y >= 0 and max_x <= img_w and max_y <= img_h:
         cropped = img[min_y:max_y, min_x:max_x, :]
-        print("+++++++++++222OK+++++++++++++++++++++")
+        # print("+++++++++++222OK+++++++++++++++++++++")
     else:
         min_x_val = max(0, min_x)
         min_y_val = max(0, min_y)
@@ -253,11 +253,11 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
             cropped[min_y_val - min_y:max_y_val - min_y, min_x_val - min_x:max_x_val - min_x, :] \
                 = img[min_y_val:max_y_val, min_x_val:max_x_val, :]
 
-            print("+++++++++++++++")
+            # print("+++++++++++++++")
         else:
             # pass
             out_flag = 1
-            print("---------------")
+            # print("---------------")
 
     scaled_g = np.array(Image.fromarray(cropped).resize((img_size, img_size)))
 

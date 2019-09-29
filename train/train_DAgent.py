@@ -47,7 +47,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
     siam_dict.update(pretrained_siam)
     siam.load_state_dict(siam_dict)
 
-    if opts['use_gpu']:
+    if torch.cuda.is_available():
         pi = pi.cuda()
         siam = siam.cuda()
     ac_trainer = Trainer(ram)
@@ -141,7 +141,10 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
                 reward_t = 1
             else:
                 reward_t = -1
-
+            # print("iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f"%(iou_siam_oral, iou_siam, iou_ac))
+            message = "iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f\n"%(iou_siam_oral, iou_siam, iou_ac)
+            with open("../logs/iou.txt", "a", encoding='utf-8') as f:
+                f.write(message)
             if reward_ac and reward_t and iou_siam_oral > 0.6:
                 template = siamfc.init(img, pos_)
                 templates.append(template)
@@ -155,6 +158,8 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             pos = pos_
             if out_flag or iou_ac == 0:
                 pos = gt[frame]
+        with open("../logs/iou.txt", "a", encoding='utf-8') as f:
+            f.write('\n\n')
         ac_trainer.optimize()
         pi.train_policy()
         reward_100 += reward_all
