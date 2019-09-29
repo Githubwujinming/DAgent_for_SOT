@@ -212,7 +212,7 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
 
     if min_x >= 0 and min_y >= 0 and max_x <= img_w and max_y <= img_h:
         cropped = img[min_y:max_y, min_x:max_x, :]
-
+        print("+++++++++++111OK+++++++++++++++++++++")
     else:
         min_x_val = max(0, min_x)
         min_y_val = max(0, min_y)
@@ -240,7 +240,7 @@ def crop_image_actor_(img, bbox, img_size=107, padding=0, valid=False):
 
     if min_x >= 0 and min_y >= 0 and max_x <= img_w and max_y <= img_h:
         cropped = img[min_y:max_y, min_x:max_x, :]
-
+        print("+++++++++++222OK+++++++++++++++++++++")
     else:
         min_x_val = max(0, min_x)
         min_y_val = max(0, min_y)
