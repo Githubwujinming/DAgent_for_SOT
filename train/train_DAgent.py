@@ -1,41 +1,41 @@
-import math
 import gc
+import cv2
+import time
 import torch
 import buffer
-import numpy as np
-import cv2
 from trainer import *
 from data_prov import *
-from modules.sample_generator import *
-import time
 from visdom import Visdom
 
-from utils.cal_distance import cal_distance
-from utils.getbatch_actor import getbatch_actor
-from utils.crop_image import crop_image_actor_, crop_image
-from utils.PILloader import loader
 from utils.crop_image import move_crop
 from utils.compute_iou import _compute_iou
 from utils.np2tensor import np2tensor, npBN
-from modules.tem_policy_base import T_Policy, weights_init
+from utils.cal_distance import cal_distance
+from utils.crop_image import crop_image_actor_, crop_image
+
+from modules.sample_generator import *
 from modules.SiameseNet import SiameseNet
 from modules.SiamFcTracker import SiamFCTracker
 from modules.EmbeddingNet import BaselineEmbeddingNet
+from modules.tem_policy_base import T_Policy, weights_init
+
 MAX_EPISODES = 250000
-MAX_STEPS = 1000
 MAX_BUFFER = 3000
 MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
 def train(continue_epi=250000, policy_path="../models/template_policy/50000_base_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+    #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
+    #siamfc跟踪器
     siamfc = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
+    #模板选择网络
     pi = T_Policy(T_N)
     weights_init(pi)
     pretrained_pi_dict = torch.load(policy_path)
     pi_dict = pi.state_dict()
-    pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
+    pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}# and k.startswith("conv")}
     pi_dict.update(pretrained_pi_dict)
     pi.load_state_dict(pi_dict)
 
@@ -47,8 +47,9 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
     siam_dict.update(pretrained_siam)
     siam.load_state_dict(siam_dict)
 
-    if torch.cuda.is_available():
+    if opts['use_gpu']:
         pi = pi.cuda()
+        siam = siam.cuda()
     ac_trainer = Trainer(ram)
     # continue_epi = 0
     if continue_epi > 0:
@@ -81,7 +82,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
                 templates.append(template)
 
         for frame in range(1, length):
-            img = cv2.cvtColor(cv2.imread(frame_name_list[frame]), cv2.COLOR_BGR2RGB)
+            cv2_img = cv2.cvtColor(cv2.imread(frame_name_list[frame]), cv2.COLOR_BGR2RGB)
             np_img = np.array(cv2.resize(cv2_img, (255, 255), interpolation=cv2.INTER_AREA)).transpose(2, 0, 1)
             np_imgs = []
             for i in range(T_N):
@@ -92,6 +93,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             pos_ = pos
 
             pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
+            del responses, np_imgs, np_img
             action = pi(pi_input).cpu()
             action_id = np.argmax(action.detach().numpy())
             template = templates[action_id]
@@ -106,26 +108,18 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
 
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             imo_g = np2tensor(np.array(img_crop_g).reshape(1, 107, 107, 3))
-
-
-
-            # img_l = np2tensor(np_img_l)
-            # torch_image = loader(img.resize((255, 255),Image.ANTIALIAS)).unsqueeze(0).cuda().mul(255.)
+            del img_crop_l, img_crop_g
             deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
-
+            del imo_l, imo_g
             if np.random.random(1) < var or frame <= 3 or frame % 20 == 0:
                 deta_pos_ = cal_distance(np.vstack([pos, pos]), np.vstack([gt[frame], gt[frame]]))
                 if np.max(abs(deta_pos_)) < 0.1:
                     deta_pos = deta_pos_[0]
 
-            if deta_pos[2] > 0.1 or deta_pos[2] < -0.1:
+            if deta_pos[2] > 0.05 or deta_pos[2] < -0.05:
                 deta_pos[2] = 0
 
             pos_ = move_crop(pos_, deta_pos, img_size, rate)
-            if frame % INTERVRAL == 0:
-                template = siamfc.init(img, pos_)
-                templates.append(template)
-                templates.pop(1)
             img_crop_l_, img_crop_g_, out_flag = crop_image_actor_(np.array(img), pos_)
             # if out_flag:
             #     pos = gt[frame]
@@ -148,6 +142,10 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             else:
                 reward_t = -1
 
+            if reward_ac and reward_t and iou_siam_oral > 0.6:
+                template = siamfc.init(img, pos_)
+                templates.append(template)
+                templates.pop(1)
             log_pi = torch.log(action[0, action_id])
             pi.put_data((reward_t, log_pi))
             ac_trainer.ram.add(npBN(imo_crop_g), npBN(imo_g_), deta_pos, reward_ac, npBN(imo_crop_l), npBN(imo_l_))

@@ -86,7 +86,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     actor.load_state_dict(actor_dict)
 
     tracker = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
-    if gpu_id != None:
+    if opts['use_gpu']:
         siam = siam.cuda()
         policy = policy.cuda()
         # tracker = tracker.cuda()
@@ -174,11 +174,11 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
                 plt.pause(.01)
                 plt.draw()
         if frame % INTERVRAL == 0:
-            template = tracker.init(cv2_img, pos_)
+            template = tracker.init(cv2_img, gt[frame])
             templates.append(template)
             templates.pop(1)
 
-
+    return result, fps
 
 
 if __name__ == '__main__':
