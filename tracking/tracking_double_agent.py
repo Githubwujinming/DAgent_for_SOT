@@ -134,16 +134,17 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
         np_imgs = []
         for i in range(T_N):
             np_imgs.append(np_img)
-
-        responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(), torch.Tensor(np_imgs).float().cuda())
-        action = policy(responses.permute(1, 0, 2, 3).cuda()).cpu().detach().numpy()
+        with torch.no_grad():
+            responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(), torch.Tensor(np_imgs).float().cuda())
+            action = policy(responses.permute(1, 0, 2, 3).cuda()).cpu().detach().numpy()
         action_id = np.argmax(action)
         template = templates[action_id]
-        siam_box = tracker.update(cv2_img, template)
+        with torch.no_grad():
+            siam_box = tracker.update(cv2_img, template)
         siam_box = np.round([siam_box[0], siam_box[1], siam_box[2] -siam_box[0], siam_box[3] - siam_box[1]])
         img_g, img_l, out_flag = getbatch_actor(np.array(image), np.array(siam_box).reshape([1, 4]))
-
-        deta_pos = actor(img_l, img_g)
+        with torch.no_grad():
+            deta_pos = actor(img_l, img_g)
         deta_pos = deta_pos.data.clone().cpu().numpy()
         if deta_pos[:, 2] > 0.05 or deta_pos[:, 2] < -0.05:
             deta_pos[:, 2] = 0

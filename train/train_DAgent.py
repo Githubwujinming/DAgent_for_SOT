@@ -87,19 +87,20 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             np_imgs = []
             for i in range(T_N):
                 np_imgs.append(np_img)
-
-            responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(),
-                             torch.Tensor(np_imgs).float().cuda())
+            with torch.no_grad():
+                responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(),
+                                 torch.Tensor(np_imgs).float().cuda())
+                pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
+                del responses, np_imgs, np_img
+                action = pi(pi_input).cpu()
             pos_ = pos
 
-            pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
-            del responses, np_imgs, np_img
-            action = pi(pi_input).cpu()
             action_id = np.argmax(action.detach().numpy())
             template = templates[action_id]
-            siam_box_oral = siamfc.update(img, templates[0])
+            with torch.no_grad():
+                siam_box_oral = siamfc.update(img, templates[0])
+                siam_box = siamfc.update(img, template)
             siam_box_oral = [siam_box_oral[0], siam_box_oral[1], siam_box_oral[2] - siam_box_oral[0], siam_box_oral[3] - siam_box_oral[1]]
-            siam_box = siamfc.update(img, template)
             siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
 
             img_crop_l, img_crop_g, _ = crop_image_actor_(np.array(img), siam_box)
@@ -109,7 +110,8 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             imo_g = np2tensor(np.array(img_crop_g).reshape(1, 107, 107, 3))
             del img_crop_l, img_crop_g
-            deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
+            with torch.no_grad():
+                deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
             del imo_l, imo_g
             if np.random.random(1) < var or frame <= 3 or frame % 20 == 0:
                 deta_pos_ = cal_distance(np.vstack([pos, pos]), np.vstack([gt[frame], gt[frame]]))
