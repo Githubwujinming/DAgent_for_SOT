@@ -85,13 +85,14 @@ class SiamFCTracker:
         size_x_scales = self.s_x * self.scales
         pyramid = get_pyramid_instance_image(frame, self.pos, config.instance_size, size_x_scales, self.img_mean)
         instance_imgs = torch.cat([self.transforms(x)[None,:,:,:] for x in pyramid], dim=0)
-        # if not exemplar == None:
-        exemplar_var = torch.cat([self.transforms(exemplar)[None,:,:,:] for x in pyramid], dim=0)
-        # else:
-        #     exemplar_var = None
+        if exemplar is not None:
+            exemplar_var = torch.cat([self.transforms(exemplar)[None,:,:,:] for x in pyramid], dim=0)
+        else:
+            exemplar_var = None
         with torch.cuda.device(self.gpu_id):
-            exemplar_var = exemplar_var.cuda()
-            instance_imgs_var = Variable(instance_imgs.cuda())
+            if exemplar is not None:
+                exemplar_var = exemplar_var.cuda()
+            instance_imgs_var =  (instance_imgs.cuda())
             response_maps = self.model((exemplar_var, instance_imgs_var))
             response_maps = response_maps.data.cpu().numpy().squeeze()
             response_maps_up = [cv2.resize(x, (self.interp_response_sz, self.interp_response_sz), cv2.INTER_CUBIC)
@@ -125,32 +126,3 @@ class SiamFCTracker:
                 self.pos[0] + self.target_sz[0]/2 + 1, # xmax
                 self.pos[1] + self.target_sz[1]/2 + 1) # ymax
         return bbox
-
-    def response_map(self, frame, exemplar=None):
-        """track object based on the previous frame
-        Args:
-            frame: an RGB image
-        Returns:
-            bbox: tuple of 1-based bounding box(xmin, ymin, xmax, ymax)
-        """
-        size_x_scales = self.s_x * self.scales
-        pyramid = get_pyramid_instance_image(frame, self.pos, config.instance_size, size_x_scales, self.img_mean)
-        instance_imgs = torch.cat([self.transforms(x)[None,:,:,:] for x in pyramid], dim=0)
-        # if not exemplar == None:
-        exemplar_var = torch.cat([self.transforms(exemplar)[None,:,:,:] for x in pyramid], dim=0)
-        # else:
-        #     exemplar_var = None
-        with torch.cuda.device(self.gpu_id):
-            exemplar_var = exemplar_var.cuda()
-            instance_imgs_var = Variable(instance_imgs.cuda())
-            response_maps = self.model((exemplar_var, instance_imgs_var))
-            response_maps = response_maps.data.cpu().numpy().squeeze()
-        # get max score
-        max_score = np.array([x.max() for x in response_maps]) * self.penalty
-
-        # penalty scale change
-        scale_idx = max_score.argmax()
-        response_map = response_maps[scale_idx]
-        response_map -= response_map.min()
-        response_map /= response_map.sum()
-        return response_map

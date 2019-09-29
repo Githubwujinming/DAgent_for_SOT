@@ -34,7 +34,7 @@ class T_Policy(nn.Module):
             nn.ReLU()
         )
         self.fc1 = nn.Sequential(
-            nn.Linear(128, 128),
+            nn.Linear(512, 128),
             nn.Dropout(0.5),
             nn.ReLU())
         self.fc2 = nn.Sequential(
@@ -44,7 +44,7 @@ class T_Policy(nn.Module):
 
     def forward(self, x):
         output = self.conv(x)
-        output = output.view(-1, 128)
+        output = output.view(-1, 512)
         output = self.fc1(output)
         output = F.relu(output)
         output = self.fc2(output)

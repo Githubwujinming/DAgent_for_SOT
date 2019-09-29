@@ -18,7 +18,9 @@ from utils.crop_image import move_crop
 from utils.compute_iou import _compute_iou
 from utils.np2tensor import np2tensor, npBN
 from modules.tem_policy_base import T_Policy, weights_init
+from modules.SiameseNet import SiameseNet
 from modules.SiamFcTracker import SiamFCTracker
+from modules.EmbeddingNet import BaselineEmbeddingNet
 MAX_EPISODES = 250000
 MAX_STEPS = 1000
 MAX_BUFFER = 3000
@@ -37,6 +39,13 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
     pi_dict.update(pretrained_pi_dict)
     pi.load_state_dict(pi_dict)
 
+    siam = SiameseNet(BaselineEmbeddingNet())
+    weights_init(siam)
+    pretrained_siam = torch.load(siamfc_path)
+    siam_dict = siam.state_dict()
+    pretrained_siam = {k: v for k, v in pretrained_siam.items() if k in siam_dict}
+    siam_dict.update(pretrained_siam)
+    siam.load_state_dict(siam_dict)
 
     if torch.cuda.is_available():
         pi = pi.cuda()
@@ -73,14 +82,15 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
 
         for frame in range(1, length):
             img = cv2.cvtColor(cv2.imread(frame_name_list[frame]), cv2.COLOR_BGR2RGB)
-            responses = []
-
-            pos_ = pos
+            np_img = np.array(cv2.resize(cv2_img, (255, 255), interpolation=cv2.INTER_AREA)).transpose(2, 0, 1)
+            np_imgs = []
             for i in range(T_N):
-                template = templates[i]
-                response = siamfc.response_map(img, template)
-                # print(response.shape)
-                responses.append(response[None, :, :])
+                np_imgs.append(np_img)
+
+            responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(),
+                             torch.Tensor(np_imgs).float().cuda())
+            pos_ = pos
+
             pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
             action = pi(pi_input).cpu()
             action_id = np.argmax(action.detach().numpy())

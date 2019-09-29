@@ -48,6 +48,9 @@ class SiameseAlexNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
+    def feature(self, x):
+        return self.features(x)
+
     def forward(self, x):
         exemplar, instance = x
         if exemplar is not None and instance is not None:

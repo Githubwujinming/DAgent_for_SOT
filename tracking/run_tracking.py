@@ -1,39 +1,39 @@
+import os
+import cv2
 import sys
 import time
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-import os
 # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 sys.path.insert(0,'../modules')
-from sample_generator import *
-from data_prov import *
-from options import *
 from actor import *
-import cv2
-import numpy as np
-import torch
+from options import *
+from data_prov import *
+from sample_generator import *
 
 
 np.random.seed(123)
 torch.manual_seed(456)
 torch.cuda.manual_seed(789)
-torch.backends.cudnn.enabled = False
+# torch.backends.cudnn.enabled = False
 
-from utils.init_video import _init_video
-from utils.region_to_bbox import region_to_bbox
-from utils.crop_image import crop_image_blur
-from utils.crop_image import move_crop
-from utils.crop_image import move_crop_tracking
-from utils.cal_distance import cal_distance
 from utils.PILloader import loader
+from utils.crop_image import move_crop
+from utils.init_video import _init_video
+from utils.cal_distance import cal_distance
+from utils.crop_image import crop_image_blur
+from utils.overlap_ratio import overlap_ratio
+from utils.crop_image import move_crop_tracking
+from utils.region_to_bbox import region_to_bbox
 from utils.getbatch_actor import getbatch_actor
 from utils.compile_results import _compile_results
-from utils.overlap_ratio import overlap_ratio
 
-
+from modules.SiameseNet import SiameseNet
 from modules.tem_policy_base import T_Policy, weights_init
-# from modules.SiameseNet import SiameseNet
 from modules.SiamFcTracker import SiamFCTracker
+from modules.EmbeddingNet import BaselineEmbeddingNet
 
 
 def init_actor(actor, image, gt):
@@ -61,7 +61,7 @@ def init_actor(actor, image, gt):
         pointer = next
         feat = actor(batch_img_l[cur_idx], batch_img_g[cur_idx])
         loss = loss_func(feat, (torch.FloatTensor(batch_distance[cur_idx])).cuda())
-
+        del feat
         actor.zero_grad()
         loss.backward()
         init_optimizer.step()
@@ -74,21 +74,18 @@ def init_actor(actor, image, gt):
     return deta_flag, out_flag_first
 
 
-def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, siamfc_path = "../models/siamfc_pretrained.pth", policy_path="../models/template_policy/50000_base_policy.pth", gpu_id=0):
-    np.random.seed(123)
-    torch.manual_seed(456)
-    torch.cuda.manual_seed(789)
+def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, siamfc_path = "../models/siamfc_pretrained.pth", policy_path="../models/template_policy/11200_template_policy.pth", gpu_id=0):
 
     rate = init_bbox[2] / init_bbox[3]
     target_bbox = np.array(init_bbox)
     result = np.zeros((len(img_list), 4))
-    result_bb = np.zeros((len(img_list), 4))
+    # result_bb = np.zeros((len(img_list), 4))
     result[0] = target_bbox
-    result_bb[0] = target_bbox
+    # result_bb[0] = target_bbox
     success = 1
     actor = Actor()#.load_state_dict(torch.load("../Models/500_actor.pth"))
 
-    pretrained_act_dict = torch.load("../models/actor_critic/250000_actor.pth")
+    pretrained_act_dict = torch.load("../models/Double_agent/11200_DA_actor.pth")
 
     actor_dict = actor.state_dict()
 
@@ -99,24 +96,29 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     actor.load_state_dict(actor_dict)
 
     siamfc = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
+    siamEmbed = siam = SiameseNet(BaselineEmbeddingNet())
     T_N = opts['T_N']
     pi = T_Policy(T_N)
-    pretrained_pi_dict = torch.load(policy_path)
-    pi_dict = pi.state_dict()
-    pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
-    pi_dict.update(pretrained_pi_dict)
-    pi.load_state_dict(pi_dict)
+    weights_init(pi)
+    # pretrained_pi_dict = torch.load(policy_path)
+    # pi_dict = pi.state_dict()
+    # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}
+    # # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
+    # pi_dict.update(pretrained_pi_dict)
+    # pi.load_state_dict(pi_dict)
 
 
     if opts['use_gpu']:
         actor = actor.cuda()
+        siamEmbed = siamEmbed.cuda()
         pi = pi.cuda()
 
     image = cv2.cvtColor(cv2.imread(img_list[0]), cv2.COLOR_BGR2RGB)
     #init
 
     deta_flag, out_flag_first = init_actor(actor, image, target_bbox)
-    template = siamfc.init(image, init_bbox)
+    template = siamfc.init(image, target_bbox)
+    # t = template
     templates = []
     for i in range(T_N):
         templates.append(template)
@@ -139,7 +141,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
                                     linewidth=3, edgecolor="#00ff00", zorder=1, fill=False)
             ax.add_patch(gt_rect)
 
-        rect = plt.Rectangle(tuple(result_bb[0, :2]), result_bb[0, 2], result_bb[0, 3],
+        rect = plt.Rectangle(tuple(result[0, :2]), result[0, 2], result[0, 3],
                              linewidth=3, edgecolor="#ff0000", zorder=1, fill=False)
         ax.add_patch(rect)
 
@@ -154,29 +156,35 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
         tic = time.time()
         # Load image
         image = cv2.cvtColor(cv2.imread(img_list[i]), cv2.COLOR_BGR2RGB)
-        # np_img = np.array(cv2.resize(image, (255, 255), interpolation=cv2.INTER_AREA))
-        # np_imgs = []
-        # for i in range(T_N):
-        #     np_imgs.append(np_img)
+        np_img = np.array(cv2.resize(image, (255, 255), interpolation=cv2.INTER_AREA)).transpose(2, 0, 1)
+        np_imgs = []
+        for i in range(T_N):
+            np_imgs.append(np_img)
         if imageVar_first > 200:
             imageVar = cv2.Laplacian(crop_image_blur(np.array(image), target_bbox), cv2.CV_64F).var()
         else:
             imageVar = 200
-        responses = []
-        for i in range(T_N):
-            template = templates[i]
-            response = siamfc.response_map(image, template)
-            responses.append(response[None,:,:])
+
         if opts['use_gpu']:
-            pi_input = torch.Tensor(responses).permute(1, 0, 2, 3).cuda()
+            responses = siamEmbed(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(), torch.Tensor(np_imgs).float().cuda())
+        else:
+            responses = siamEmbed(torch.Tensor(templates).permute(0, 3, 1, 2).float(), torch.Tensor(np_imgs).float())
+        # responses = []
+        # for i in range(T_N):
+        #     template = templates[i]
+        #     response = siamfc.response_map(image, template)
+        #     responses.append(response[None,:,:])
+        if opts['use_gpu']:
+            pi_input = torch.Tensor(responses.cpu()).permute(1, 0, 2, 3).cuda()
             action = pi(pi_input).cpu().detach().numpy()
         else:
-            pi_input = torch.Tensor(responses).permute(1, 0, 2, 3).cuda()
+            pi_input = torch.Tensor(responses).permute(1, 0, 2, 3)
             action = pi(pi_input).numpy()
         action_id = np.argmax(action)
         template = templates[action_id]
-        siam_box = siamfc.update(image, template)
-        siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
+        siam_box = siamfc.update(image,templates[0])
+        siam_box = np.round([siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]])
+        print(siam_box)
         # Estimate target bbox
         img_g, img_l, out_flag = getbatch_actor(np.array(image), np.array(siam_box).reshape([1, 4]))
         deta_pos = actor(img_l, img_g)
@@ -191,7 +199,10 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
         if imageVar > 100:
             target_bbox = pos_
             result[i] = target_bbox
-
+        if i % 10 == 0:
+            template = siamfc.init(image, pos_)
+            templates.append(template)
+            templates.pop(1)
 
         spf = time.time() - tic
         spf_total += spf
@@ -205,9 +216,9 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
                 gt_rect.set_width(gt[i, 2])
                 gt_rect.set_height(gt[i, 3])
 
-            rect.set_xy(result_bb[i, :2])
-            rect.set_width(result_bb[i, 2])
-            rect.set_height(result_bb[i, 3])
+            rect.set_xy(result[i, :2])
+            rect.set_width(result[i, 2])
+            rect.set_height(result[i, 3])
 
             if display:
                 plt.pause(.01)
@@ -223,7 +234,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
                 if opts['show_train']:
                     print
                     ("Frame %d/%d, Overlap %.3f, Time %.3f, box (%d,%d,%d,%d), var %d" % \
-                    (i, len(img_list), overlap_ratio(gt[i], result_bb[i])[0], spf, target_bbox[0],
+                    (i, len(img_list), overlap_ratio(gt[i], result[i])[0], spf, target_bbox[0],
                      target_bbox[1], target_bbox[2], target_bbox[3], imageVar))
 
     fps = len(img_list) / spf_total
