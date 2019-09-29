@@ -20,7 +20,7 @@ from utils.cal_distance import cal_distance
 from utils.crop_image import move_crop_tracking
 from utils.region_to_bbox import region_to_bbox
 from utils.getbatch_actor import getbatch_actor
-
+from utils.compile_results import _compile_results
 
 T_N = 5
 INTERVRAL = 10
@@ -209,4 +209,9 @@ if __name__ == '__main__':
     ground_th = np.zeros([gt.shape[0], 4])
     for i in range(gt.shape[0]):
         ground_th[i] = region_to_bbox(gt[i], False)
-    run_tracking(frame_name_list, gt[0], gt=gt, savefig_dir=savefig_dir, display=display, siamfc_path=siamfc_path)
+    bboxes, fps = run_tracking(frame_name_list, gt[0], gt=gt, savefig_dir=savefig_dir, display=display)
+    _, precision, precision_auc, iou = _compile_results(gt, bboxes, 20)
+    print(video + \
+          ' -- Precision ' + ': ' + "%.2f" % precision + \
+          ' -- IOU: ' + "%.2f" % iou + \
+          ' -- Speed: ' + "%.2f" % fps + ' --')
