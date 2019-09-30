@@ -68,19 +68,19 @@ class T_Policy(nn.Module):
         self.data = []
 
 
-
 #
-if __name__ == '__main__':
-    net = SiameseNet(BaselineEmbeddingNet())
-    # print(net)
-    net = net.cuda()
-    weights_init(net)
-    z = torch.rand(2,3,127,127).cuda()
-    x = torch.rand(2,3,255,255).cuda()
-    net.eval()
-    out = net(z, x).permute(1, 0, 2, 3)
-    print(out.shape)
-    policy = T_Policy(2).cuda()
-    weights_init(policy)
-    out = policy(out)
-    print(out)
+# #
+# if __name__ == '__main__':
+#     net = SiameseNet(BaselineEmbeddingNet())
+#     # print(net)
+#     net = net.cuda()
+#     weights_init(net)
+#     z = torch.rand(2,3,127,127).cuda()
+#     x = torch.rand(2,3,255,255).cuda()
+#     net.eval()
+#     out = net(z, x).permute(1, 0, 2, 3)
+#     print(out.shape)
+#     policy = T_Policy(2).cuda()
+#     weights_init(policy)
+#     out = policy(out)
+#     print(out)

@@ -76,7 +76,6 @@ def train(continue_epi=5000, policy_path="../models/template_policy/5000_templat
         templates = []
         for init_num in range(1):
             ac_trainer.init_actor(img, ground_th)
-            img = cv2.cvtColor(cv2.imread(frame_name_list[init_num]), cv2.COLOR_BGR2RGB)
             template = siamfc.init(img, ground_th)
             for i in range(T_N):
                 templates.append(template)
