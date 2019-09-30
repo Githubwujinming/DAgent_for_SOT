@@ -25,7 +25,7 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=250000, policy_path="../models/template_policy/50000_base_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def train(continue_epi=5000, policy_path="../models/template_policy/5000_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
     #siamfc跟踪器
@@ -90,9 +90,9 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             with torch.no_grad():
                 responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(),
                                  torch.Tensor(np_imgs).float().cuda())
-                pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
-                del responses, np_imgs, np_img
-                action = pi(pi_input).cpu()
+            pi_input = torch.tensor(responses).permute(1, 0, 2, 3).cuda()
+            del responses, np_imgs, np_img
+            action = pi(pi_input).cpu()
             pos_ = pos
 
             action_id = np.argmax(action.detach().numpy())
@@ -110,8 +110,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             imo_g = np2tensor(np.array(img_crop_g).reshape(1, 107, 107, 3))
             del img_crop_l, img_crop_g
-            with torch.no_grad():
-                deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
+            deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
             del imo_l, imo_g
             if np.random.random(1) < var or frame <= 3 or frame % 20 == 0:
                 deta_pos_ = cal_distance(np.vstack([pos, pos]), np.vstack([gt[frame], gt[frame]]))
@@ -135,6 +134,8 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             iou_siam = _compute_iou(siam_box, gt[frame])
             iou_ac = _compute_iou(pos_, gt[frame])
 
+            # reward_ac = iou_ac - iou_siam
+            # reward_t = iou_siam - iou_siam_oral
             if iou_ac > iou_siam:
                 reward_ac = 1
             else:
@@ -158,7 +159,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
             #     break
             reward_all += reward_ac
             pos = pos_
-            if out_flag or iou_ac == 0:
+            if out_flag or iou_ac <= 0.2:
                 pos = gt[frame]
         with open("../logs/iou.txt", "a", encoding='utf-8') as f:
             f.write('\n\n')
@@ -179,7 +180,7 @@ def train(continue_epi=250000, policy_path="../models/template_policy/50000_base
                      update='append')
             reward_100 = 0
 
-        if train_step % 200 == 0:
+        if train_step % 400 == 0:
             ac_trainer.save_models(train_step)
             torch.save(pi.state_dict(), '../models/template_policy/'+ str(train_step) + '_template_policy.pth')
         if train_step % 10000 == 0:

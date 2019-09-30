@@ -90,7 +90,7 @@ class Trainer:
 			loss.backward()
 			init_optimizer.step()
 			if True:
-				print("Iter %d, Loss %.10f" % (iter, loss.item()))
+				print("init actor Iter %d, Loss %.10f" % (iter, loss.item()))
 			if loss.item() < 0.0001:
 				deta_flag = 0
 				return deta_flag
@@ -169,8 +169,8 @@ class Trainer:
 		:param episode_count: the count of episodes iterated
 		:return:
 		"""
-		torch.save(self.target_actor.state_dict(), '../models/Double_agent/' + str(episode_count + 0) + '_DA_actor.pth')
-		torch.save(self.target_critic.state_dict(), '../models/Double_agent/' + str(episode_count + 0) + '_DA_critic.pth')
+		torch.save(self.target_actor.state_dict(), '../models/Double_agent/' + str(episode_count + self.load_episode) + '_DA_actor.pth')
+		torch.save(self.target_critic.state_dict(), '../models/Double_agent/' + str(episode_count + self.load_episode) + '_DA_critic.pth')
 		print ('Models saved successfully')
 
 	def load_models(self, load_episode):
@@ -180,8 +180,8 @@ class Trainer:
 		:return:
 		"""
 		self.load_episode = load_episode
-		self.actor.load_state_dict(torch.load('../models/actor_critic/' + str(load_episode) + '_actor.pth'))
-		self.critic.load_state_dict(torch.load('../models/actor_critic/' + str(load_episode) + '_critic.pth'))
+		self.actor.load_state_dict(torch.load('../models/Double_agent/' + str(load_episode) + '_DA_actor.pth'))
+		self.critic.load_state_dict(torch.load('../models/Double_agent/' + str(load_episode) + '_DA_critic.pth'))
 		hard_update(self.target_actor, self.actor)
 		hard_update(self.target_critic, self.critic)
 		print ('Models loaded succesfully')
