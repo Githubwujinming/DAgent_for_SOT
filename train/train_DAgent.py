@@ -25,9 +25,14 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=5000, policy_path="../models/template_policy/5000_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def train(continue_epi=5200, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
+    ac_trainer = Trainer(ram)
+    # continue_epi = 0
+    if continue_epi > 0:
+        policy_path = policy_path.format(continue_epi)
+        ac_trainer.load_models(continue_epi)
     #siamfc跟踪器
     siamfc = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
     #模板选择网络
@@ -50,10 +55,7 @@ def train(continue_epi=5000, policy_path="../models/template_policy/5000_templat
     if torch.cuda.is_available():
         pi = pi.cuda()
         siam = siam.cuda()
-    ac_trainer = Trainer(ram)
-    # continue_epi = 0
-    if continue_epi > 0:
-        ac_trainer.load_models(continue_epi)
+
     var = 0.3
     start_time = time.time()
     vis = Visdom(env='td_error')
@@ -110,11 +112,13 @@ def train(continue_epi=5000, policy_path="../models/template_policy/5000_templat
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             imo_g = np2tensor(np.array(img_crop_g).reshape(1, 107, 107, 3))
             del img_crop_l, img_crop_g
+            expect = 0
             deta_pos = ac_trainer.actor(imo_l, imo_g).squeeze(0).cpu().detach().numpy()
             del imo_l, imo_g
             if np.random.random(1) < var or frame <= 3 or frame % 20 == 0:
                 deta_pos_ = cal_distance(np.vstack([pos, pos]), np.vstack([gt[frame], gt[frame]]))
-                if np.max(abs(deta_pos_)) < 0.1:
+                if np.max(abs(deta_pos_)) < 0.05:
+                    expect = 1
                     deta_pos = deta_pos_[0]
 
             if deta_pos[2] > 0.05 or deta_pos[2] < -0.05:
@@ -145,7 +149,7 @@ def train(continue_epi=5000, policy_path="../models/template_policy/5000_templat
             else:
                 reward_t = -1
             # print("iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f"%(iou_siam_oral, iou_siam, iou_ac))
-            message = "iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f\n"%(iou_siam_oral, iou_siam, iou_ac)
+            message = "iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f ,expecte :%d\n"%(iou_siam_oral, iou_siam, iou_ac, expect)
             with open("../logs/iou.txt", "a", encoding='utf-8') as f:
                 f.write(message)
             if reward_ac and reward_t and iou_siam_oral > 0.6:
@@ -182,7 +186,8 @@ def train(continue_epi=5000, policy_path="../models/template_policy/5000_templat
 
         if train_step % 400 == 0:
             ac_trainer.save_models(train_step)
-            torch.save(pi.state_dict(), '../models/template_policy/'+ str(train_step) + '_template_policy.pth')
+            torch.save(pi.state_dict(), '../models/template_policy/'+ str(train_step + continue_epi) + '_template_policy.pth')
+            print("save model----")
         if train_step % 10000 == 0:
             var = var * 0.95
 

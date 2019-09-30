@@ -61,14 +61,14 @@ class Trainer:
 		torch.cuda.manual_seed(789)
 
 		batch_num = 64
-		maxiter = 10
+		maxiter = 3
 		self.actor.train()
 		init_optimizer = torch.optim.Adam(self.actor.parameters(), lr=0.0001)
 		loss_func = torch.nn.MSELoss()
 		_, _, out_flag_first = getbatch_actor(np.array(image), np.array(gt).reshape([1, 4]))
 
 
-		actor_samples = np.round(gen_samples(SampleGenerator('gaussian', (image.shape[1],image.shape[0]), 0.2, 1.1, None), gt, 640, [0.6, 1], None))
+		actor_samples = np.round(gen_samples(SampleGenerator('gaussian', (image.shape[1],image.shape[0]), 0.2, 1.1, None), gt, 192, [0.6, 1], None))
 		idx = np.random.permutation(actor_samples.shape[0])
 
 		batch_img_g, batch_img_l, _ = getbatch_actor(np.array(image), actor_samples)
