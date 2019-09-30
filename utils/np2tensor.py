@@ -1,6 +1,4 @@
 import torch
-from torch.autograd import Variable
-
 
 def np2tensor(imo_l):
 

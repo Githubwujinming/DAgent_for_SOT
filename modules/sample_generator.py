@@ -1,6 +1,4 @@
 import numpy as np
-from PIL import Image
-
 from utils.overlap_ratio import overlap_ratio
 
 def gen_samples(generator, bbox, n, overlap_range=None, scale_range=None):

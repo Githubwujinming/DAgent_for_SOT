@@ -1,11 +1,10 @@
 import torch
 import numpy as np
+from torch import nn
 import torch.nn.functional as F
 
-from torchvision.models import alexnet
-from torch import nn
-
 from .config import config
+
 
 class SiameseAlexNet(nn.Module):
     def __init__(self, gpu_id, train=True):

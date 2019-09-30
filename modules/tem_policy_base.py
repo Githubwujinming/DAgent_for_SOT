@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.nn.init import xavier_normal_, constant_, zeros_, normal_
+
 gamma = 0.98
 def weights_init(model):
 

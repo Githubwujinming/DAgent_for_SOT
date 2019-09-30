@@ -1,12 +1,12 @@
 import os
+import torch
 import scipy.io
 import numpy as np
-from collections import OrderedDict
-
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-import torch
+from collections import OrderedDict
+
 
 
 def append_params(params, module, prefix):

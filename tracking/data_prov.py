@@ -1,8 +1,6 @@
 import torch
 import numpy as np
 from utils.crop_image import crop_image
-from utils.crop_image import crop_image_actor_
-
 
 class RegionExtractor():
     def __init__(self, image, samples, crop_size, padding, batch_size, shuffle=False):

@@ -5,8 +5,7 @@ import time
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
 sys.path.insert(0,'../modules')
 from actor import *
 from options import *

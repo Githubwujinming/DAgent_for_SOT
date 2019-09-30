@@ -1,7 +1,7 @@
 import numpy as np
+from utils.compute_iou import _compute_iou
 from utils.region_to_bbox import region_to_bbox
 from utils.compute_distance import _compute_distance
-from utils.compute_iou import _compute_iou
 
 
 def _compile_results(gt, bboxes, dist_threshold):

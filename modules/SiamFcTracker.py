@@ -1,17 +1,14 @@
 import numpy as np
 import cv2
 import torch
-import torch.nn.functional as F
-import time
-import warnings
+from torch.autograd import Variable
 import torchvision.transforms as transforms
 
-from torch.autograd import Variable
 
-from modules.alexnet import SiameseAlexNet
 from modules.config import config
+from modules.alexnet import SiameseAlexNet
 from modules.custom_transforms import ToTensor
-from utils.siam_utils import get_exemplar_image, get_pyramid_instance_image, get_instance_image
+from utils.siam_utils import get_exemplar_image, get_pyramid_instance_image
 
 torch.set_num_threads(1) # otherwise pytorch will take all cpus
 

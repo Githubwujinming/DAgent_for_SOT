@@ -1,6 +1,6 @@
+import cv2
 import torch
 import numpy as np
-import cv2
 
 class RandomStretch(object):
     def __init__(self, max_stretch=0.05):

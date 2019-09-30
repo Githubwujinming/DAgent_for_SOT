@@ -1,9 +1,9 @@
+import torch
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
-import torch
 import torch.nn.init as init
 from torch.autograd import Variable
+
 np.random.seed(122)
 torch.manual_seed(455)
 torch.cuda.manual_seed(788)

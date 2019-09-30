@@ -1,19 +1,17 @@
 import gc
+import time
 import buffer
-import numpy as np
 from trainer import *
 from data_prov import *
-from modules.sample_generator import *
-import time
 from visdom import Visdom
+from modules.sample_generator import *
 
-from utils.cal_distance import cal_distance
-from utils.getbatch_actor import getbatch_actor
-from utils.crop_image import crop_image_actor_, crop_image
-from utils.PILloader import loader
 from utils.crop_image import move_crop
 from utils.compute_iou import _compute_iou
+from utils.cal_distance import cal_distance
 from utils.np2tensor import np2tensor, npBN
+from utils.crop_image import crop_image_actor_
+
 MAX_EPISODES = 250000
 MAX_STEPS = 1000
 MAX_BUFFER = 2000

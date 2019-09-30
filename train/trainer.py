@@ -1,4 +1,5 @@
 from __future__ import division
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,8 +10,7 @@ from train_utils import *
 from model import Actor, Critic
 from utils.getbatch_actor import getbatch_actor
 from utils.cal_distance import cal_distance
-from utils.PILloader import loader
-from utils.np2tensor import np2tensor
+
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 GAMMA = 0.99

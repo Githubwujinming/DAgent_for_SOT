@@ -11,7 +11,7 @@ from utils.crop_image import move_crop
 from utils.compute_iou import _compute_iou
 from utils.np2tensor import np2tensor, npBN
 from utils.cal_distance import cal_distance
-from utils.crop_image import crop_image_actor_, crop_image
+from utils.crop_image import crop_image_actor_
 
 from modules.sample_generator import *
 from modules.SiameseNet import SiameseNet
