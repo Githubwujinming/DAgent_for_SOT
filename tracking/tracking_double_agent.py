@@ -1,5 +1,6 @@
 import cv2
 import sys
+import time
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -75,11 +76,18 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     siam_dict.update(pretrained_siam)
     siam.load_state_dict(siam_dict)
 
-    policy = T_Policy(T_N)
-    weights_init(policy)
+    pi = T_Policy(T_N)
+    # weights_init(policy)
+
+    pretrained_pi_dict = torch.load('../models/template_policy/95600_template_policy.pth')
+    pi_dict = pi.state_dict()
+    pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}
+    # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
+    pi_dict.update(pretrained_pi_dict)
+    pi.load_state_dict(pi_dict)
 
     actor = Actor()  # .load_state_dict(torch.load("../Models/500_actor.pth"))
-    pretrained_act_dict = torch.load("../models/Double_agent/11200_DA_actor.pth")
+    pretrained_act_dict = torch.load("../models/Double_agent/95600_DA_actor.pth")
     actor_dict = actor.state_dict()
     pretrained_act_dict = {k: v for k, v in pretrained_act_dict.items() if k in actor_dict}
     actor_dict.update(pretrained_act_dict)
@@ -88,14 +96,14 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     tracker = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
     if opts['use_gpu']:
         siam = siam.cuda()
-        policy = policy.cuda()
+        policy = pi.cuda()
         # tracker = tracker.cuda()
 
     image = cv2.cvtColor(cv2.imread(img_list[0]), cv2.COLOR_BGR2RGB)
     result = np.zeros((len(img_list), 4))
     result[0] = target_bbox
 
-
+    spf_total = 0
     if display:
         dpi = 80.0
         figsize = (image.shape[1] / dpi, image.shape[0] / dpi)
@@ -128,6 +136,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     for i in range(T_N):
         templates.append(template)
     for frame in range(1, len(gt)):
+        tic = time.time()
         # img = Image.open(frame_name_list[frame]).convert('RGB')
         cv2_img = cv2.cvtColor(cv2.imread(img_list[frame]), cv2.COLOR_BGR2RGB)
         np_img = np.array(cv2.resize(cv2_img, (255, 255),interpolation=cv2.INTER_AREA)).transpose(2, 0, 1)
@@ -138,6 +147,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
             responses = siam(torch.Tensor(templates).permute(0, 3, 1, 2).float().cuda(), torch.Tensor(np_imgs).float().cuda())
             action = policy(responses.permute(1, 0, 2, 3).cuda()).cpu().detach().numpy()
         action_id = np.argmax(action)
+        print(action_id)
         template = templates[action_id]
         with torch.no_grad():
             siam_box = tracker.update(cv2_img, template)
@@ -153,7 +163,8 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
 
         pos_ = np.round(move_crop_tracking(np.array(siam_box), deta_pos, (image.shape[1], image.shape[0]), rate))
         result[frame] = pos_
-
+        spf = time.time() - tic
+        spf_total += spf
 
         if display:
             im.set_data(cv2_img)
@@ -175,10 +186,11 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
                 plt.pause(.01)
                 plt.draw()
         if frame % INTERVRAL == 0:
-            template = tracker.init(cv2_img, gt[frame])
+            template = tracker.init(cv2_img,gt[frame])
+            # template = tracker.init(cv2_img, pos_* 0.5+ siam_box*0.5)
             templates.append(template)
             templates.pop(1)
-
+    fps = len(img_list) / spf_total
     return result, fps
 
 

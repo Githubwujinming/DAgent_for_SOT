@@ -84,7 +84,7 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     success = 1
     actor = Actor()#.load_state_dict(torch.load("../Models/500_actor.pth"))
 
-    pretrained_act_dict = torch.load("../models/Double_agent/11200_DA_actor.pth")
+    pretrained_act_dict = torch.load("../models/Double_agent/95600_DA_actor.pth")
 
     actor_dict = actor.state_dict()
 
@@ -99,12 +99,12 @@ def run_tracking(img_list, init_bbox, gt=None, savefig_dir='', display=False, si
     T_N = opts['T_N']
     pi = T_Policy(T_N)
     weights_init(pi)
-    # pretrained_pi_dict = torch.load(policy_path)
-    # pi_dict = pi.state_dict()
-    # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}
-    # # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
-    # pi_dict.update(pretrained_pi_dict)
-    # pi.load_state_dict(pi_dict)
+    pretrained_pi_dict = torch.load('../models/template_policy/95600_template_policy.pth')
+    pi_dict = pi.state_dict()
+    pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}
+    # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
+    pi_dict.update(pretrained_pi_dict)
+    pi.load_state_dict(pi_dict)
 
 
     if opts['use_gpu']:
