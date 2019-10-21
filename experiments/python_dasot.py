@@ -5,12 +5,16 @@ import time
 import torch
 import numpy as np
 import collections
+import os.path
 
-sys.path.insert(0,'../modules')
-from actor import *
-from option import *
-from data_prov import *
-from sample_generator import *
+# make sure the paths you need are append
+basedir = os.path.dirname(__file__)
+sys.path.append(os.path.abspath(os.path.join(basedir, os.path.pardir)))
+
+from modules.sample_generator import *
+from modules.actor import Actor
+# from option import *
+# from data_prov import *
 
 from modules.SiameseNet import SiameseNet
 from modules.tem_policy_base import T_Policy
@@ -25,6 +29,7 @@ from utils.getbatch_actor import getbatch_actor
 from utils.compile_results import _compile_results
 
 
+project_path = os.path.abspath(os.path.join(basedir, os.path.pardir))
 T_N = 5
 
 def init_actor(actor, image, gt):
@@ -81,7 +86,7 @@ class DATracker(object):
 
         self.siam = SiameseNet(BaselineEmbeddingNet())
         # weights_init(siam)
-        siamfc_path = "../models/siamfc_pretrained.pth"
+        siamfc_path = project_path + "/models/siamfc_pretrained.pth"
 
         pretrained_siam = torch.load(siamfc_path)
         siam_dict = self.siam.state_dict()
@@ -91,7 +96,7 @@ class DATracker(object):
 
         self.pi = T_Policy(T_N)
 
-        pretrained_pi_dict = torch.load('../models/template_policy/95600_template_policy.pth')
+        pretrained_pi_dict = torch.load(project_path + '/models/template_policy/234400_template_policy.pth')
         pi_dict = self.pi.state_dict()
         pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}
         # pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict and k.startswith("conv")}
@@ -99,7 +104,7 @@ class DATracker(object):
         self.pi.load_state_dict(pi_dict)
 
         self.actor = Actor()  # .load_state_dict(torch.load("../Models/500_actor.pth"))
-        pretrained_act_dict = torch.load("../models/Double_agent/95600_DA_actor.pth")
+        pretrained_act_dict = torch.load(project_path + "/models/Double_agent/234400_DA_actor.pth")
         actor_dict = self.actor.state_dict()
         pretrained_act_dict = {k: v for k, v in pretrained_act_dict.items() if k in actor_dict}
         actor_dict.update(pretrained_act_dict)
@@ -131,7 +136,7 @@ class DATracker(object):
         # print(action_id)
         template = self.templates[action_id]
         with torch.no_grad():
-            siam_box = tracker.update(image, template)
+            siam_box = self.tracker.update(image, template)
         siam_box = np.round([siam_box[0], siam_box[1], siam_box[2] -siam_box[0], siam_box[3] - siam_box[1]])
         img_g, img_l, out_flag = getbatch_actor(np.array(image), np.array(siam_box).reshape([1, 4]))
         with torch.no_grad():
@@ -152,13 +157,16 @@ selection = handle.region()
 imagefile = handle.frame()
 if not imagefile:
     sys.exit(0)
-
-image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+rett = dict()
+rett["imagefile"] = imagefile
+image = cv2.imread(imagefile, cv2.COLOR_BGR2RGB)
+# print(image)
 tracker = DATracker(image, selection)
 while True:
     imagefile = handle.frame()
+    rett["imagefile"] = imagefile
     if not imagefile:
         break
-    image = cv2.imread(imagefile, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(imagefile, cv2.COLOR_BGR2RGB)
     region = tracker.track(image)
-    handle.report(region)
+    handle.report(region,rett)

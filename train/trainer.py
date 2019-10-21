@@ -171,7 +171,7 @@ class Trainer:
 		"""
 		torch.save(self.target_actor.state_dict(), '../models/Double_agent/' + str(episode_count + self.load_episode) + '_DA_actor.pth')
 		torch.save(self.target_critic.state_dict(), '../models/Double_agent/' + str(episode_count + self.load_episode) + '_DA_critic.pth')
-		print ('Models saved successfully')
+		print ('Models saved successfully{}'.format(str(episode_count + self.load_episode)))
 
 	def load_models(self, load_episode):
 		"""

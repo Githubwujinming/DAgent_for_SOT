@@ -25,7 +25,7 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=5200, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def train(continue_epi=234400, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
     ac_trainer = Trainer(ram)
@@ -186,7 +186,7 @@ def train(continue_epi=5200, policy_path="../models/template_policy/{}_template_
         if train_step % 400 == 0:
             ac_trainer.save_models(train_step)
             torch.save(pi.state_dict(), '../models/template_policy/'+ str(train_step + continue_epi) + '_template_policy.pth')
-            print("save model----")
+            print("save model----{}".format(str(train_step + continue_epi)))
         if train_step % 10000 == 0:
             var = var * 0.95
 

@@ -68,7 +68,7 @@ class VOT(object):
 
         return self._region
 
-    def report(self, region, confidence = None):
+    def report(self, region, rett, confidence = None):
         """
         Report the tracking results to the client
 
@@ -83,7 +83,7 @@ class VOT(object):
         properties = {}
         if not confidence is None:
             properties['confidence'] = confidence
-        self._trax.status(tregion, properties)
+        self._trax.status(tregion, rett)
 
     def frame(self):
         """
