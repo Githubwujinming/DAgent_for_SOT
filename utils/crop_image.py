@@ -163,8 +163,9 @@ def crop_image_actor(img, bbox, img_size=107, padding=0, valid=False):
         max_y_val = min(img_h, max_y)
 
         cropped = 128 * np.ones((max_y - min_y, max_x - min_x, 3), dtype='uint8')
-        cropped[min_y_val - min_y:max_y_val - min_y, min_x_val - min_x:max_x_val - min_x, :] \
-            = img[min_y_val:max_y_val, min_x_val:max_x_val, :]
+        if (min_y_val - min_y) < (max_y_val - min_y) and min_x_val-max_x_val != 0:
+            cropped[min_y_val - min_y:max_y_val - min_y, min_x_val - min_x:max_x_val - min_x, :] \
+                = img[min_y_val:max_y_val, min_x_val:max_x_val, :]
 
     scaled_l = imresize(cropped, (img_size, img_size))
 
