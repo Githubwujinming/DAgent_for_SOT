@@ -43,7 +43,9 @@ class SiamFCTracker:
         self.pos = np.array([bbox[0]-1+(bbox[2]-1)/2, bbox[1]-1+(bbox[3]-1)/2])  # center x, center y, zero based
         self.target_sz = np.array([bbox[2], bbox[3]])                            # width, height
         # get exemplar img
-        self.img_mean = tuple(map(int, frame.mean(axis=(0, 1))))
+        # print(type(frame.mean(axis=(0, 1))))
+        # map(int, frame.mean(axis=(0, 1)))
+        self.img_mean = tuple(map(int, (frame.mean(axis=(0, 1)))))
         exemplar_img, scale_z, s_z = get_exemplar_image(frame, self.bbox,
                 config.exemplar_size, config.context_amount, self.img_mean)
         t = exemplar_img
