@@ -18,8 +18,6 @@ torch.manual_seed(456)
 torch.cuda.manual_seed(789)
 # torch.backends.cudnn.enabled = False
 
-from utils.PILloader import loader
-from utils.crop_image import move_crop
 from utils.init_video import _init_video
 from utils.cal_distance import cal_distance
 from utils.crop_image import crop_image_blur
