@@ -1,4 +1,3 @@
-import vot
 import sys
 import cv2
 import time
@@ -76,9 +75,9 @@ class DATracker(object):
 
         left = max(region.x, 0)
         top = max(region.y, 0)
-        #
-        # right = min(region.x + region.width, image.shape[1] - 1)
-        # bottom = min(region.y + region.height, image.shape[0] - 1)
+
+        right = min(region.x + region.width, image.shape[1] - 1)
+        bottom = min(region.y + region.height, image.shape[0] - 1)
 
         self.position = (region.x + region.width / 2, region.y + region.height / 2)
         self.size = (region.width, region.height)
@@ -122,7 +121,7 @@ class DATracker(object):
         self.deta_flag, self.out_flag_first = init_actor(self.actor, image, init_bbox)
 
 
-    def track(self, image):
+    def update(self, image):
 
         np_img = np.array(cv2.resize(image, (255, 255), interpolation=cv2.INTER_AREA)).transpose(2, 0, 1)
         np_imgs = []
@@ -135,14 +134,14 @@ class DATracker(object):
         action_id = np.argmax(action)
         # print(action_id)
         if action[0][action_id] * 0.9 > action[0][0]:
-            template = self.templates[0]
+            template = self.templates[action_id]
         else:
             template = self.templates[0]
         with torch.no_grad():
             siam_box = self.tracker.update(image, template)
         siam_box = np.round([siam_box[0], siam_box[1], siam_box[2] -siam_box[0], siam_box[3] - siam_box[1]])
         bbox = siam_box
-        for i in range(1):
+        for i in range(5):
             img_g, img_l, out_flag = getbatch_actor(np.array(image), np.array(bbox).reshape([1, 4]))
             with torch.no_grad():
                 deta_pos = self.actor(img_l, img_g)
@@ -155,24 +154,4 @@ class DATracker(object):
             pos_ = np.round(move_crop_tracking(np.array(siam_box), deta_pos, (image.shape[1], image.shape[0]), self.rate))
             bbox = pos_
         result = bbox
-        return vot.Rectangle(result[0], result[1], result[2], result[3])
-
-
-handle = vot.VOT("rectangle")
-selection = handle.region()
-imagefile = handle.frame()
-if not imagefile:
-    sys.exit(0)
-rett = dict()
-rett["imagefile"] = imagefile
-image = cv2.imread(imagefile, cv2.COLOR_BGR2RGB)
-# print(image)
-tracker = DATracker(image, selection)
-while True:
-    imagefile = handle.frame()
-    rett["imagefile"] = imagefile
-    if not imagefile:
-        break
-    image = cv2.imread(imagefile, cv2.COLOR_BGR2RGB)
-    region = tracker.track(image)
-    handle.report(region,rett)
+        return result

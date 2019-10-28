@@ -56,8 +56,7 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
         pi = pi.cuda()
         siam = siam.cuda()
 
-    var = 0.3
-    start_time = time.time()
+    var = 0.5
     vis = Visdom(env='td_error')
     line_loss = vis.line(np.arange(1))
     train_ilsvrc_data_path = 'ilsvrc_train_new.json'
@@ -99,12 +98,12 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
             action_id = np.argmax(action.detach().numpy())
             template = templates[action_id]
             with torch.no_grad():
-                siam_box_oral = siamfc.update(img, templates[0])
-                siam_box = siamfc.update(img, template)
+                siam_box_oral = siamfc.update(cv2_img, templates[0])
+                siam_box = siamfc.update(cv2_img, template)
             siam_box_oral = [siam_box_oral[0], siam_box_oral[1], siam_box_oral[2] - siam_box_oral[0], siam_box_oral[3] - siam_box_oral[1]]
             siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
 
-            img_crop_l, img_crop_g, _ = crop_image_actor_(np.array(img), siam_box)
+            img_crop_l, img_crop_g, _ = crop_image_actor_(np.array(cv2_img), siam_box)
             imo_crop_l = (np.array(img_crop_l).reshape(3, 107, 107))
             imo_crop_g = (np.array(img_crop_g).reshape(3, 107, 107))
 
@@ -123,8 +122,8 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
             if deta_pos[2] > 0.05 or deta_pos[2] < -0.05:
                 deta_pos[2] = 0
 
-            pos_ = move_crop(pos_, deta_pos, img_size, rate)
-            img_crop_l_, img_crop_g_, out_flag = crop_image_actor_(np.array(img), pos_)
+            pos_ = move_crop(np.array(siam_box), deta_pos, img_size, rate)
+            img_crop_l_, img_crop_g_, out_flag = crop_image_actor_(np.array(cv2_img), pos_)
             # if out_flag:
             #     pos = gt[frame]
             #     continue
@@ -149,10 +148,10 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
                 reward_t = -1
             # print("iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f"%(iou_siam_oral, iou_siam, iou_ac))
             message = "iou_siam_oral: %2f, iou_siam: %2f, iou_ac: %2f ,expecte :%d\n"%(iou_siam_oral, iou_siam, iou_ac, expect)
-            with open("../logs/iou.txt", "a", encoding='utf-8') as f:
-                f.write(message)
-            if reward_ac and reward_t and iou_siam_oral > 0.6:
-                template = siamfc.init(img, pos_)
+            # with open("../logs/iou.txt", "a", encoding='utf-8') as f:
+            #     f.write(message)
+            if reward_ac or reward_t and iou_siam_oral > 0.6:
+                template = siamfc.init(cv2_img, pos_)
                 templates.append(template)
                 templates.pop(1)
             log_pi = torch.log(action[0, action_id])

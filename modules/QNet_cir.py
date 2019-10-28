@@ -411,34 +411,35 @@ class QNet_cir(nn.Module):
     def __init__(self):
         super(QNet_cir, self).__init__()
         self.features = ResNet22()
-        self.fc1 = nn.Linear(2055, 512)
+        self.fc1 = nn.Linear(2048, 512)
         self.relu5 = nn.ReLU()
 
-        self.fc2 = nn.Linear(512, 2)
+        self.fc2 = nn.Linear(512, 7)
+
+    def sample_action(self, obs):
+        out = self.forward(obs)
+        return out.argmax().item()
 
 
 
-    def forward(self, x, a):
+    def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)
-        x = torch.cat([x,a], dim=1)
         x = self.fc1(x)
         x = self.relu5(x)
         x = self.fc2(x)
         return x
 
 def QNet_train(q, q_target, memory, optimizer):
-    for i in range(5):
-        s, a, r, s_prime = memory.sample(32)
-        a2 = torch.zeros(7)
-        mq = 0
-        for j in range(7):
-            a2[j] = 1
-            q_out = q(s_prime, a2)
-            if q_out[0] > mq:
-                mq = q_out[0]
-        target = r + 0.98 * mq
-        q_a = q(s, a)[0]
+    for i in range(10):
+        s, a, r, s_prime = memory.sample(64)
+        # a = a.long()
+        a = a.squeeze(1).bool()
+        q_out = q(s)
+        q_a = torch.masked_select(q_out, a)
+        mq = q_target(s_prime).max(1)[0].unsqueeze(1)
+        target = r.float() + 0.98 * mq
+        # q_a = q(s, a)[0]
         loss = F.smooth_l1_loss(q_a, target)
         optimizer.zero_grad()
         loss.backward()
@@ -448,7 +449,7 @@ def QNet_train(q, q_target, memory, optimizer):
 
 class ReplayBuffer():
     def __init__(self):
-        self.buffer = deque(maxlen = 1000)
+        self.buffer = deque(maxlen=20000)
 
 
     def put(self, transistion):
