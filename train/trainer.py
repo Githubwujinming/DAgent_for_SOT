@@ -89,7 +89,7 @@ class Trainer:
 			self.actor.zero_grad()
 			loss.backward()
 			init_optimizer.step()
-			if True:
+			if False:
 				print("init actor Iter %d, Loss %.10f" % (iter, loss.item()))
 			if loss.item() < 0.0001:
 				deta_flag = 0

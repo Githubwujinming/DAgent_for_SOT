@@ -431,7 +431,7 @@ class QNet_cir(nn.Module):
         return x
 
 def QNet_train(q, q_target, memory, optimizer):
-    for i in range(10):
+    for i in range(5):
         s, a, r, s_prime = memory.sample(64)
         # a = a.long()
         a = a.squeeze(1).bool()

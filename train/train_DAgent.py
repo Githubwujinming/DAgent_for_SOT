@@ -25,7 +25,7 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=234400, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def train(continue_epi=247200, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
     ac_trainer = Trainer(ram)
@@ -57,8 +57,8 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
         siam = siam.cuda()
 
     var = 0.5
-    vis = Visdom(env='td_error')
-    line_loss = vis.line(np.arange(1))
+    # vis = Visdom(env='td_error')
+    # line_loss = vis.line(np.arange(1))
     train_ilsvrc_data_path = 'ilsvrc_train_new.json'
     ilsvrc_home = '/media/x/D/wujinming/ILSVRC2015_VID/ILSVRC2015/Data/VID'
     # ilsvrc_home = '/media/ubuntu/DATA/Document/ILSVRC2015_VID/ILSVRC2015/Data/VID'
@@ -103,7 +103,7 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
             siam_box_oral = [siam_box_oral[0], siam_box_oral[1], siam_box_oral[2] - siam_box_oral[0], siam_box_oral[3] - siam_box_oral[1]]
             siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
 
-            img_crop_l, img_crop_g, _ = crop_image_actor_(np.array(cv2_img), siam_box)
+            img_crop_l, img_crop_g, _ = crop_image_actor_(np.array(cv2_img), siam_box_oral)
             imo_crop_l = (np.array(img_crop_l).reshape(3, 107, 107))
             imo_crop_g = (np.array(img_crop_g).reshape(3, 107, 107))
 
@@ -122,7 +122,7 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
             if deta_pos[2] > 0.05 or deta_pos[2] < -0.05:
                 deta_pos[2] = 0
 
-            pos_ = move_crop(np.array(siam_box), deta_pos, img_size, rate)
+            pos_ = move_crop(np.array(siam_box_oral), deta_pos, img_size, rate)
             img_crop_l_, img_crop_g_, out_flag = crop_image_actor_(np.array(cv2_img), pos_)
             # if out_flag:
             #     pos = gt[frame]
@@ -138,7 +138,7 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
 
             # reward_ac = iou_ac - iou_siam
             # reward_t = iou_siam - iou_siam_oral
-            if iou_ac > iou_siam:
+            if iou_ac > iou_siam_oral:
                 reward_ac = 1
             else:
                 reward_ac = -1
@@ -169,7 +169,7 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
         pi.train_policy()
         reward_100 += reward_all
         gc.collect()
-        if train_step % 100 == 0:
+        if train_step % 100 == 0 and train_step != 0:
             td_error = ac_trainer.show_critic_loss()
 
             print(train_step, reward_100, 'td_error', td_error)
@@ -177,12 +177,12 @@ def train(continue_epi=234400, policy_path="../models/template_policy/{}_templat
             message = 'train_step: %d, reward_100: %d, td_error: %f \n' % (train_step, reward_100, y)
             with open("../logs/train_td_error.txt", "a", encoding='utf-8') as f:
                 f.write(message)
-            vis.line(X=np.array([train_step]), Y=np.array([y]),
-                     win=line_loss,
-                     update='append')
+            # vis.line(X=np.array([train_step]), Y=np.array([y]),
+            #          win=line_loss,
+            #          update='append')
             reward_100 = 0
 
-        if train_step % 400 == 0:
+        if train_step % 400 == 0 and train_step != 0:
             ac_trainer.save_models(train_step)
             torch.save(pi.state_dict(), '../models/template_policy/'+ str(train_step + continue_epi) + '_template_policy.pth')
             print("save model----{}".format(str(train_step + continue_epi)))

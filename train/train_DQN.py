@@ -24,7 +24,7 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=400, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=1):
+def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=1):
     #强化学习样本存储空间
     ram = ReplayBuffer()
     q = QNet_cir()
@@ -110,14 +110,14 @@ def train(continue_epi=400, policy_path="../models/Qnet/template_policy/{}_templ
             siam_box_oral = [siam_box_oral[0], siam_box_oral[1], siam_box_oral[2] - siam_box_oral[0], siam_box_oral[3] - siam_box_oral[1]]
             siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
 
-            img_crop_l, _, _ = crop_image_actor_(np.array(cv2_img), siam_box)
+            img_crop_l, _, _ = crop_image_actor_(np.array(cv2_img), siam_box_oral)
             imo_crop_l = (np.array(img_crop_l).reshape(3, 107, 107))
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             del img_crop_l
             expect = 0
             act_pos = np.zeros(7)
             a = np.random.randint(7)
-            pos = np.array(siam_box)
+            pos = np.array(siam_box_oral)
             deta = 0.04
             deta_pos = np.zeros(3)
             if np.random.random(1) < var or frame <= 3 or frame % 30 == 0:
@@ -162,7 +162,7 @@ def train(continue_epi=400, policy_path="../models/Qnet/template_policy/{}_templ
             iou_siam_oral = _compute_iou(siam_box_oral, gt[frame])
             iou_siam = _compute_iou(siam_box, gt[frame])
             iou_ac = _compute_iou(pos_, gt[frame])
-            if iou_ac > iou_siam:
+            if iou_ac > iou_siam_oral:
                 reward_ac = 1
             else:
                 reward_ac = -1
@@ -183,11 +183,11 @@ def train(continue_epi=400, policy_path="../models/Qnet/template_policy/{}_templ
             reward_all += reward_ac
         with open("../logs/iou.txt", "a", encoding='utf-8') as f:
             f.write('\n\n')
-        if ram.size() >= 64:
+        if ram.size() >= 640:
             QNet_train(q, q_target, ram, q_optimizer)
         pi.train_policy()
         reward_100 += reward_all
-        if train_step % 100 == 0:
+        if train_step % 100 == 0 and train_step != 0:
             q_target.load_state_dict(q.state_dict())
             print("# of episode:{}, avg score : {:.1f}, buffer size:{}".format(train_step, reward_100/100, ram.size()))
             reward_100 = 0
