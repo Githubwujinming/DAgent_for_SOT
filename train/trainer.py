@@ -37,11 +37,11 @@ class Trainer:
 
 		# self.actor.init_weight()
 		self.actor = self.actor.cuda()
-		self.target_actor = Actor
+		self.target_actor = Actor_cir
 		self.target_actor = self.target_actor.cuda()
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),LEARNING_RATE)
 
-		self.critic = Actor_cir
+		self.critic = Critic
 		self.critic = self.critic.cuda()
 		self.target_critic = Critic
 		self.target_critic = self.target_critic.cuda()

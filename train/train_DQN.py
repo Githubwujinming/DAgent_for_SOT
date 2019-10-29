@@ -118,7 +118,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
             act_pos = np.zeros(7)
             a = np.random.randint(7)
             pos = np.array(siam_box_oral)
-            deta = 0.04
+            deta = 0.02
             deta_pos = np.zeros(3)
             if np.random.random(1) < var or frame <= 3 or frame % 30 == 0:
                 expect = 1

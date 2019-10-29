@@ -3,7 +3,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.init as init
 from torch.autograd import Variable
-from QNet_cir import ResNet22
+from modules.QNet_cir import ResNet22
 
 np.random.seed(122)
 torch.manual_seed(455)
