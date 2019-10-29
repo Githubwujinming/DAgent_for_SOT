@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from modules.sample_generator import *
 
 from train_utils import *
-from model import Actor, Critic
+from model import Actor, Critic, Actor_cir
 from utils.getbatch_actor import getbatch_actor
 from utils.cal_distance import cal_distance
 
@@ -33,7 +33,7 @@ class Trainer:
 		self.load_episode = 0
 		# self.noise = OUAction.OrnsteinUhlenbeckActionNoise()
 
-		self.actor = Actor
+		self.actor = Actor_cir
 
 		# self.actor.init_weight()
 		self.actor = self.actor.cuda()
@@ -41,7 +41,7 @@ class Trainer:
 		self.target_actor = self.target_actor.cuda()
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),LEARNING_RATE)
 
-		self.critic = Critic
+		self.critic = Actor_cir
 		self.critic = self.critic.cuda()
 		self.target_critic = Critic
 		self.target_critic = self.target_critic.cuda()
