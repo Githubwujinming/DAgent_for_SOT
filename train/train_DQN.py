@@ -67,7 +67,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
         q = q.cuda()
         q_target = q_target.cuda()
 
-    var = 0.5
+    var = 0.3
     train_ilsvrc_data_path = 'ilsvrc_train_new.json'
     ilsvrc_home = '/media/x/D/wujinming/ILSVRC2015_VID/ILSVRC2015/Data/VID'
     # ilsvrc_home = '/media/ubuntu/DATA/Document/ILSVRC2015_VID/ILSVRC2015/Data/VID'
@@ -118,7 +118,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
             act_pos = np.zeros(7)
             a = np.random.randint(7)
             pos = np.array(siam_box_oral)
-            deta = 0.04
+            deta = 2
             deta_pos = np.zeros(3)
             if np.random.random(1) < var or frame <= 3 or frame % 30 == 0:
                 expect = 1
@@ -126,36 +126,36 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
                 a_ind = np.argmax(np.abs(deta_pos_))
                 if(a_ind == 0):
                     if(deta_pos_[a_ind]>0):
-                        a = 4
-                    else:
                         a = 3
+                    else:
+                        a = 4
                 if(a_ind == 1):
                     if (deta_pos_[a_ind] > 0):
-                        a = 2
-                    else:
                         a = 1
+                    else:
+                        a = 2
                 if(a_ind == 2):
                     if (deta_pos_[a_ind] > 0):
-                        a = 5
-                    else:
                         a = 6
+                    else:
+                        a = 5
             else:
                 a = q.sample_action(imo_l)
 
             del imo_l
             act_pos[a] = 1
             if(a == 1):
-                deta_pos[1] -= deta
+                deta_pos[1] += deta/siam_box_oral[3]
             if(a == 2):
-                deta_pos[1] += deta
+                deta_pos[1] -= deta/siam_box_oral[3]
             if(a == 3):
-                deta_pos[0] -= deta
+                deta_pos[0] += deta/siam_box_oral[2]
             if(a == 4):
-                deta_pos[0] += deta
+                deta_pos[0] -= deta/siam_box_oral[2]
             if(a == 5):
-                deta_pos[2] += deta
+                deta_pos[2] -= deta/siam_box_oral[3]
             if(a == 6):
-                deta_pos[2] -= deta
+                deta_pos[2] += deta/siam_box_oral[3]
             pos_ = move_crop(pos, deta_pos, img_size, rate)
             img_crop_l_, _, out_flag = crop_image_actor_(np.array(cv2_img), pos_)
             imo_l_ = np.array(img_crop_l_).reshape(3, 107, 107)
