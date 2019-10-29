@@ -37,14 +37,17 @@ class Actor(nn.Module):
 
         self.fc2 = nn.Linear(512, 3)
         self.out = nn.Tanh()
+        self.dropout = nn.Dropout(0.5)
 
     def forward(self, xl, xg):
         x = self.features(xl)
         y = self.features(xg)
         x = torch.cat([x, y], dim=1)
         x = x.view(x.size(0), -1)
+        x = self.dropout(x)
         x = self.fc1(x)
         x = self.relu5(x)
+        x = self.dropout(x)
         x = self.fc2(x)
         x = self.out(x)
 
