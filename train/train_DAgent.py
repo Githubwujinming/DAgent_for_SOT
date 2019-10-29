@@ -25,19 +25,20 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=247200, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def train(continue_epi=0, policy_path="../models/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = buffer.MemoryBuffer(MAX_BUFFER)
     ac_trainer = Trainer(ram)
     # continue_epi = 0
     if continue_epi > 0:
-        policy_path = policy_path.format(continue_epi)
+        policy_path = policy_path.format(254400)
         ac_trainer.load_models(continue_epi)
     #siamfc跟踪器
     siamfc = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
     #模板选择网络
     pi = T_Policy(T_N)
     weights_init(pi)
+    policy_path = policy_path.format(254400)
     pretrained_pi_dict = torch.load(policy_path)
     pi_dict = pi.state_dict()
     pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}# and k.startswith("conv")}
