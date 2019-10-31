@@ -3,6 +3,14 @@ import cv2
 import time
 import torch
 import buffer
+
+sys.path.insert(0,'../modules')
+from actor import *
+from options import *
+from data_prov import *
+from sample_generator import *
+
+
 from trainer import *
 from data_prov import *
 from utils.crop_image import move_crop
@@ -28,7 +36,44 @@ INTERVRAL = 10
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
+def init_actor(actor, image, gt):
+    batch_num = 64
+    maxiter = 10
+    actor = actor.cuda()
+    actor.train()
+    init_optimizer = torch.optim.Adam(actor.parameters(), lr=0.0001)
+    loss_func= torch.nn.MSELoss()
+    _, _, out_flag_first = getbatch_actor(np.array(image), np.array(gt).reshape([1, 4]))
+    actor_samples = np.round(gen_samples(SampleGenerator('uniform', (image.shape[1],image.shape[0]), 0.3, 1.5, None),
+                                         gt, 640, [0.6, 1], [0.9, 1.1]))
+    idx = np.random.permutation(actor_samples.shape[0])
+    batch_img_g, _, _ = getbatch_actor(np.array(image), actor_samples)
+    batch_distance = cal_distance(actor_samples, np.tile(gt, [actor_samples.shape[0], 1]))
+    batch_distance = np.array(batch_distance).astype(np.float32)
+    while (len(idx) < batch_num * maxiter):
+        idx = np.concatenate([idx, np.random.permutation(actor_samples.shape[0])])
+
+    pointer = 0
+    # torch_image = loader(image.resize((255,255),Image.ANTIALIAS)).unsqueeze(0).cuda() - 128./255.
+    for iter in range(maxiter):
+        next = pointer + batch_num
+        cur_idx = idx[pointer: next]
+        pointer = next
+        feat = actor(batch_img_g[cur_idx])
+        loss = loss_func(feat, (torch.FloatTensor(batch_distance[cur_idx])).cuda())
+        del feat
+        actor.zero_grad()
+        loss.backward()
+        init_optimizer.step()
+        if opts['show_train']:
+            print("Iter %d, Loss %.10f"%(iter, loss.item()))
+        if loss.item() < 0.0001:
+            deta_flag = 0
+            return deta_flag
+        deta_flag = 1
+    return deta_flag, out_flag_first
+
+def train(continue_epi=5600, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = ReplayBuffer()
     q = QNet_cir()
@@ -164,7 +209,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
             img_crop_l_ = crop_image(np.array(cv2_img), pos_)
             imo_l_ = np.array(img_crop_l_).reshape(3, 107, 107)
             iou_siam_oral = _compute_iou(siam_box_oral, gt[frame])
-            if iou_siam_oral == 0:
+            if iou_siam_oral < 0.2:
                 continue
             iou_siam = _compute_iou(siam_box, gt[frame])
             iou_ac = _compute_iou(pos_, gt[frame])
