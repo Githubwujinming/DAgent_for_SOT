@@ -52,8 +52,8 @@ def move_crop(pos_, deta_pos, img_size, rate):
     pos[pos[:, 0] < 0, 0] = 0
     pos[pos[:, 1] < 0, 1] = 0
 
-    pos[pos[:, 0] > img_size[1], 0] = img_size[1]
-    pos[pos[:, 1] > img_size[0], 1] = img_size[0]
+    pos[pos[:, 2] > img_size[1], 2] = img_size[1]
+    pos[pos[:, 3] > img_size[0], 3] = img_size[0]
     if flag == 1:
         pos = pos[0]
 

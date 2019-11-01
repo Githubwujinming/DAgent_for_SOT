@@ -3,9 +3,18 @@ import cv2
 import time
 import torch
 import buffer
+
+sys.path.insert(0,'../modules')
+from actor import *
+from options import *
+from data_prov import *
+from sample_generator import *
+
+
 from trainer import *
 from data_prov import *
 from utils.crop_image import move_crop
+from utils.crop_image import crop_image
 from utils.compute_iou import _compute_iou
 from utils.np2tensor import np2tensor, npBN
 from utils.cal_distance import cal_distance
@@ -24,7 +33,47 @@ MAX_TOTAL_REWARD = 300
 T_N = 5
 INTERVRAL = 10
 
-def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=1):
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+def init_actor(actor, image, gt):
+    batch_num = 64
+    maxiter = 10
+    actor = actor.cuda()
+    actor.train()
+    init_optimizer = torch.optim.Adam(actor.parameters(), lr=0.0001)
+    loss_func= torch.nn.MSELoss()
+    _, _, out_flag_first = getbatch_actor(np.array(image), np.array(gt).reshape([1, 4]))
+    actor_samples = np.round(gen_samples(SampleGenerator('uniform', (image.shape[1],image.shape[0]), 0.3, 1.5, None),
+                                         gt, 640, [0.6, 1], [0.9, 1.1]))
+    idx = np.random.permutation(actor_samples.shape[0])
+    batch_img_g, _, _ = getbatch_actor(np.array(image), actor_samples)
+    batch_distance = cal_distance(actor_samples, np.tile(gt, [actor_samples.shape[0], 1]))
+    batch_distance = np.array(batch_distance).astype(np.float32)
+    while (len(idx) < batch_num * maxiter):
+        idx = np.concatenate([idx, np.random.permutation(actor_samples.shape[0])])
+
+    pointer = 0
+    # torch_image = loader(image.resize((255,255),Image.ANTIALIAS)).unsqueeze(0).cuda() - 128./255.
+    for iter in range(maxiter):
+        next = pointer + batch_num
+        cur_idx = idx[pointer: next]
+        pointer = next
+        feat = actor(batch_img_g[cur_idx])
+        loss = loss_func(feat, (torch.FloatTensor(batch_distance[cur_idx])).cuda())
+        del feat
+        actor.zero_grad()
+        loss.backward()
+        init_optimizer.step()
+        if opts['show_train']:
+            print("Iter %d, Loss %.10f"%(iter, loss.item()))
+        if loss.item() < 0.0001:
+            deta_flag = 0
+            return deta_flag
+        deta_flag = 1
+    return deta_flag, out_flag_first
+
+def train(continue_epi=5600, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = ReplayBuffer()
     q = QNet_cir()
@@ -67,7 +116,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
         q = q.cuda()
         q_target = q_target.cuda()
 
-    var = 0.5
+    var = 0.3
     train_ilsvrc_data_path = 'ilsvrc_train_new.json'
     ilsvrc_home = '/media/x/D/wujinming/ILSVRC2015_VID/ILSVRC2015/Data/VID'
     # ilsvrc_home = '/media/ubuntu/DATA/Document/ILSVRC2015_VID/ILSVRC2015/Data/VID'
@@ -110,7 +159,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
             siam_box_oral = [siam_box_oral[0], siam_box_oral[1], siam_box_oral[2] - siam_box_oral[0], siam_box_oral[3] - siam_box_oral[1]]
             siam_box = [siam_box[0], siam_box[1], siam_box[2] - siam_box[0], siam_box[3] - siam_box[1]]
 
-            img_crop_l, _, _ = crop_image_actor_(np.array(cv2_img), siam_box_oral)
+            img_crop_l = crop_image(np.array(cv2_img), siam_box_oral)
             imo_crop_l = (np.array(img_crop_l).reshape(3, 107, 107))
             imo_l = np2tensor(np.array(img_crop_l).reshape(1, 107, 107, 3))
             del img_crop_l
@@ -118,7 +167,7 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
             act_pos = np.zeros(7)
             a = np.random.randint(7)
             pos = np.array(siam_box_oral)
-            deta = 0.02
+            deta = 5
             deta_pos = np.zeros(3)
             if np.random.random(1) < var or frame <= 3 or frame % 30 == 0:
                 expect = 1
@@ -126,40 +175,42 @@ def train(continue_epi=800, policy_path="../models/Qnet/template_policy/{}_templ
                 a_ind = np.argmax(np.abs(deta_pos_))
                 if(a_ind == 0):
                     if(deta_pos_[a_ind]>0):
-                        a = 4
-                    else:
                         a = 3
+                    else:
+                        a = 4
                 if(a_ind == 1):
                     if (deta_pos_[a_ind] > 0):
-                        a = 2
-                    else:
                         a = 1
+                    else:
+                        a = 2
                 if(a_ind == 2):
                     if (deta_pos_[a_ind] > 0):
-                        a = 5
-                    else:
                         a = 6
+                    else:
+                        a = 5
             else:
                 a = q.sample_action(imo_l)
 
             del imo_l
             act_pos[a] = 1
             if(a == 1):
-                deta_pos[1] -= deta
+                deta_pos[1] += deta/siam_box_oral[3]
             if(a == 2):
-                deta_pos[1] += deta
+                deta_pos[1] -= deta/siam_box_oral[3]
             if(a == 3):
-                deta_pos[0] -= deta
+                deta_pos[0] += deta/siam_box_oral[2]
             if(a == 4):
-                deta_pos[0] += deta
+                deta_pos[0] -= deta/siam_box_oral[2]
             if(a == 5):
-                deta_pos[2] += deta
+                deta_pos[2] -= deta/max(siam_box_oral[3], siam_box_oral[2])
             if(a == 6):
-                deta_pos[2] -= deta
+                deta_pos[2] += deta/max(siam_box_oral[3], siam_box_oral[2])
             pos_ = move_crop(pos, deta_pos, img_size, rate)
-            img_crop_l_, _, out_flag = crop_image_actor_(np.array(cv2_img), pos_)
+            img_crop_l_ = crop_image(np.array(cv2_img), pos_)
             imo_l_ = np.array(img_crop_l_).reshape(3, 107, 107)
             iou_siam_oral = _compute_iou(siam_box_oral, gt[frame])
+            if iou_siam_oral < 0.2:
+                continue
             iou_siam = _compute_iou(siam_box, gt[frame])
             iou_ac = _compute_iou(pos_, gt[frame])
             if iou_ac > iou_siam_oral:

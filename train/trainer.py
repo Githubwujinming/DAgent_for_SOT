@@ -33,11 +33,11 @@ class Trainer:
 		self.load_episode = 0
 		# self.noise = OUAction.OrnsteinUhlenbeckActionNoise()
 
-		self.actor = Actor_cir
+		self.actor = Actor
 
 		# self.actor.init_weight()
 		self.actor = self.actor.cuda()
-		self.target_actor = Actor_cir
+		self.target_actor = Actor
 		self.target_actor = self.target_actor.cuda()
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(),LEARNING_RATE)
 

@@ -413,6 +413,7 @@ class QNet_cir(nn.Module):
         self.features = ResNet22()
         self.fc1 = nn.Linear(2048, 512)
         self.relu5 = nn.ReLU()
+        self.dropout = nn.Dropout(0.5)
 
         self.fc2 = nn.Linear(512, 7)
 
@@ -425,9 +426,12 @@ class QNet_cir(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)
+        x = self.dropout(x)
         x = self.fc1(x)
         x = self.relu5(x)
+        x = self.dropout(x)
         x = self.fc2(x)
+        x = F.softmax(x)
         return x
 
 def QNet_train(q, q_target, memory, optimizer):
