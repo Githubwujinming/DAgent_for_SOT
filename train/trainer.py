@@ -144,6 +144,7 @@ class Trainer:
 		y_predicted = torch.squeeze(self.critic.forward(s_l, a1))
 		# compute critic loss, and update the critic
 		loss_critic = F.smooth_l1_loss(y_predicted, y_expected)
+		self.loss_critic = loss_critic
 		self.critic_optimizer.zero_grad()
 		loss_critic.backward()
 		self.critic_optimizer.step()
@@ -187,24 +188,5 @@ class Trainer:
 		print ('Models loaded succesfully')
 
 	def show_critic_loss(self):
-		self.critic.eval()
-		s_g, s_g_, a_arr, r_arr, s_l, s_l_ = self.ram.sample(BATCH_SIZE)
 
-		# s_g = torch.from_numpy(s_g).cuda()
-		s_g_ = torch.from_numpy(s_g_).cuda()
-		a1 = torch.from_numpy(a_arr).cuda()
-		r1 = torch.from_numpy(r_arr).cuda()
-		s_l = torch.from_numpy(s_l).cuda()
-		s_l_ = torch.from_numpy(s_l_).cuda()
-
-		# ---------------------- optimize critic ----------------------
-		# Use target actor exploitation policy here for loss evaluation
-		a2 = self.target_actor.forward(s_l_, s_g_).detach()
-		next_val = torch.squeeze(self.target_critic.forward(s_l_, a2).detach())
-		# y_exp = r + gamma*Q'( s2, pi'(s2))
-		y_expected = r1 + GAMMA * next_val
-		# y_pred = Q( s1, a1)
-		y_predicted = torch.squeeze(self.critic.forward(s_l, a1))
-		# compute critic loss, and update the critic
-		loss_critic = F.smooth_l1_loss(y_predicted, y_expected)
-		return loss_critic
+		return self.loss_critic

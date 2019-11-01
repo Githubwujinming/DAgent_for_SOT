@@ -76,8 +76,11 @@ def init_actor(actor, image, gt):
 def train(continue_epi=5600, policy_path="../models/Qnet/template_policy/{}_template_policy.pth",siamfc_path = "../models/siamfc_pretrained.pth",gpu_id=0):
     #强化学习样本存储空间
     ram = ReplayBuffer()
+    #q-learning 网络
     q = QNet_cir()
+    #q-leraning 目标网络
     q_target = QNet_cir()
+    #优化器
     q_optimizer = torch.optim.Adam(q.parameters(), lr=0.0005)
     #siamfc跟踪器
     siamfc = SiamFCTracker(model_path=siamfc_path, gpu_id=gpu_id)
@@ -86,6 +89,7 @@ def train(continue_epi=5600, policy_path="../models/Qnet/template_policy/{}_temp
     weights_init(pi)
 
     if continue_epi > 0:
+        #加载模板选择网络预训练权重
         pretrained_pi_dict = torch.load(policy_path.format(continue_epi))
         pi_dict = pi.state_dict()
         pretrained_pi_dict = {k: v for k, v in pretrained_pi_dict.items() if k in pi_dict}  # and k.startswith("conv")}
@@ -190,7 +194,6 @@ def train(continue_epi=5600, policy_path="../models/Qnet/template_policy/{}_temp
                         a = 5
             else:
                 a = q.sample_action(imo_l)
-
             del imo_l
             act_pos[a] = 1
             if(a == 1):
